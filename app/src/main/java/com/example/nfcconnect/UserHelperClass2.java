@@ -1,35 +1,42 @@
+
 package com.example.nfcconnect;
 
-public class UserHelperClass2{
-    String userName, nfcPassword,key;
+
+public class UserHelperClass2 {
+
+
+    String name, encNFCpass, aesKey;
 
     public UserHelperClass2() {
-        this.userName = userName;
     }
 
-    public UserHelperClass2(String userName, String encNFCpass,String KEY) {
-        this.userName = userName;
-        this.nfcPassword =encNFCpass;
-        this.key=KEY;
+    public UserHelperClass2(String name, String encNFCpass, String aesKey) {
+        this.name = name;
+        this.encNFCpass = encNFCpass;
+        this.aesKey = aesKey;
     }
 
-    public String getUserName() {
-        return userName;
+    public String getName() {
+        return name;
     }
 
-    public void setUserName(String userName) {
-        this.userName = userName;
+    public void setName(String name) {
+        this.name = name;
     }
 
-    public String getNfcPassword() {
-        return nfcPassword;
+    public String getEncNFCpass() {
+        return encNFCpass;
     }
 
-    public void setNfcPassword(String encnfcPassword) {
-        this.nfcPassword = encnfcPassword;
+    public void setEncNFCpass(String encNFCpass) {
+        this.encNFCpass = encNFCpass;
     }
 
-    public String getKey(){return key;}
-    public  void setKey(String key){this.key= key ;}
+    public String getAesKey() {
+        return aesKey;
+    }
+
+    public void setAesKey(String aesKey) {
+        this.aesKey = aesKey;
+    }
 }
-

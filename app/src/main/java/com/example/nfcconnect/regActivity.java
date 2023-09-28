@@ -1,7 +1,7 @@
 package com.example.nfcconnect;
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
 
+import androidx.appcompat.app.AppCompatActivity;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -10,34 +10,24 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.Toast;
-
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.io.IOException;
-
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.FormBody;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+import java.util.Base64; // Import Base64
+import java.util.HashMap;
+import java.util.Map;
 
 public class regActivity extends AppCompatActivity implements TextWatcher {
+
     EditText reguName, regemail, regPass, regnPass;
     Button rButton;
     FirebaseDatabase rootNode;
     DatabaseReference reference;
-    OkHttpClient okHttpClient = new OkHttpClient();
-    String encPassword, encNFCpass, Key, name, emailId;
-    String password;
-    String NFC_Password;
-    String txtResponse;
-    ProgressBar progressBar; // Declare ProgressBar
+    String encPassword, encNFCpass, name, emailId, aesKeyString; // Store the AES key as a string
+    SecretKey aesKey;
+    ProgressBar progressBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,32 +39,81 @@ public class regActivity extends AppCompatActivity implements TextWatcher {
         rButton = findViewById(R.id.regbtn2);
         regPass = findViewById(R.id.pId);
         regnPass = findViewById(R.id.npId);
-        progressBar = findViewById(R.id.progressBar3); // Initialize ProgressBar
+        progressBar = findViewById(R.id.progressBar3);
 
-        progressBar.setVisibility(View.GONE); // Hide the progress bar initially
+        progressBar.setVisibility(View.GONE);
+
+        // Generate the AES key once in the onCreate method
+        try {
+            aesKey = generateAESKey();
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(regActivity.this, "AES Key generation error", Toast.LENGTH_SHORT).show();
+        }
 
         rButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 name = reguName.getText().toString();
                 emailId = regemail.getText().toString();
+                String password = regPass.getText().toString();
+                String NFC_Password = regnPass.getText().toString();
 
-                rootNode = FirebaseDatabase.getInstance();
-                reference = rootNode.getReference("app");
+                try {
+                    // Use the same AES key for both password and NFC password encryption
+                    encPassword = encryptAES(password, aesKey);
+                    encNFCpass = encryptAES(NFC_Password, aesKey);
 
-                UserHelperClass helperClass = new UserHelperClass(name, emailId, encPassword, encNFCpass, Key);
-                reference.child(name).setValue(helperClass);
-                Toast.makeText(regActivity.this, "Successfully Registered with Name " + name, Toast.LENGTH_SHORT).show();
-                reference.child(name).setValue(helperClass);
+                    rootNode = FirebaseDatabase.getInstance();
+                    reference = rootNode.getReference("app");
 
-                // Show the progress spinner when the Register button is clicked
-                progressBar.setVisibility(View.VISIBLE);
+                    // Convert AES key to a Base64-encoded string
+                    aesKeyString = encodeAESKeyToString(aesKey);
 
-                regnPass.clearFocus();
+                    // Create a map to store the user data
+                    Map<String, Object> userData = new HashMap<>();
+                    userData.put("name", name);
+                    userData.put("emailId", emailId);
+                    userData.put("encPassword", encPassword);
+                    userData.put("encNFCpass", encNFCpass);
+                    userData.put("aesKey", aesKeyString); // Store the AES key as a Base64 string
+
+                    reference.child(name).setValue(userData);
+
+                    Toast.makeText(regActivity.this, "Successfully Registered with Name " + name, Toast.LENGTH_SHORT).show();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    Toast.makeText(regActivity.this, "Encryption error", Toast.LENGTH_SHORT).show();
+                }
             }
         });
 
-        regPass.addTextChangedListener(this); // Set TextWatcher on the password EditText
+        regPass.addTextChangedListener(this);
+    }
+
+    private SecretKey generateAESKey() throws Exception {
+        KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
+        keyGenerator.init(128); // Use AES-128
+        return keyGenerator.generateKey();
+    }
+
+    private String encryptAES(String plainText, SecretKey secretKey) throws Exception {
+        Cipher cipher = Cipher.getInstance("AES");
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+        byte[] encryptedBytes = cipher.doFinal(plainText.getBytes());
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            return Base64.getEncoder().encodeToString(encryptedBytes); // Convert the bytes to a Base64-encoded string
+        }
+        return null;
+    }
+
+    private String encodeAESKeyToString(SecretKey secretKey) {
+        // Convert the SecretKey to a Base64-encoded string
+        byte[] keyBytes = secretKey.getEncoded();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            return Base64.getEncoder().encodeToString(keyBytes);
+        }
+        return null;
     }
 
     @Override
@@ -91,50 +130,5 @@ public class regActivity extends AppCompatActivity implements TextWatcher {
     public void afterTextChanged(Editable editable) {
         // This method is called after the text has changed
         // Perform the operation when the password text is modified
-        password = regPass.getText().toString();
-        NFC_Password = regnPass.getText().toString();
-
-        // Show the progress spinner
-        progressBar.setVisibility(View.VISIBLE);
-
-        RequestBody formbody = new FormBody.Builder().add("password", password).add("nfcpassword", NFC_Password).add("activity", "register").build();
-        Request request = new Request.Builder().url("https://karthik022.pythonanywhere.com/encrypt").post(formbody).build();
-
-        okHttpClient.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        // Hide the spinner on failure
-                       //    progressBar.setVisibility(View.GONE);
-                        Toast.makeText(regActivity.this, "Flask response error", Toast.LENGTH_LONG).show();
-                    }
-                });
-            }
-
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            txtResponse = response.body().string();
-                            JSONObject reader = new JSONObject(txtResponse);
-                            encPassword = reader.getString("password");
-                            encNFCpass = reader.getString("nfcpassword");
-                            Key = reader.getString("key");
-
-                            // Hide the spinner on successful response
-                            progressBar.setVisibility(View.GONE);
-
-                            // Continue with your code for a successful response
-                        } catch (JSONException | IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                });
-            }
-        });
     }
 }
