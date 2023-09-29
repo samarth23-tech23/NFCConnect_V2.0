@@ -58,7 +58,10 @@ public class regActivity extends AppCompatActivity implements TextWatcher {
                 emailId = regemail.getText().toString();
                 String password = regPass.getText().toString();
                 String NFC_Password = regnPass.getText().toString();
-
+                if(!password.equals(NFC_Password)){
+                    Toast.makeText(regActivity.this,"Passwords not matching",Toast.LENGTH_SHORT).show();
+                }
+                if(name.length()!=0 && emailId.length()!=0 && password.length()!=0 && NFC_Password.length()!=0){
                 try {
                     // Use the same AES key for both password and NFC password encryption
                     encPassword = encryptAES(password, aesKey);
@@ -86,7 +89,11 @@ public class regActivity extends AppCompatActivity implements TextWatcher {
                     Toast.makeText(regActivity.this, "Encryption error", Toast.LENGTH_SHORT).show();
                 }
             }
-        });
+                else{
+                    Toast.makeText(regActivity.this,"Fill all the required fields",Toast.LENGHT_SHORT).show();
+                }
+            }
+        );
 
         regPass.addTextChangedListener(this);
     }
