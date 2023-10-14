@@ -126,7 +126,7 @@ public class reset extends AppCompatActivity {
                                     .build();
 
                             Request request3 = new Request.Builder()
-                                    .url("https://raspi-nfcapi.socketxp.com/reset")
+                                    .url("https://raspi-nfc.socketxp.com/reset")
                                     .post(formbody3)
                                     .build();
 
