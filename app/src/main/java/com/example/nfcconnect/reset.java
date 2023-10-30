@@ -121,12 +121,12 @@ public class reset extends AppCompatActivity {
 
                             // For resetting, send combinedUP to the server (e.g., via HTTP request)
                             RequestBody formbody3 = new FormBody.Builder()
-                                    .add("resetpassword", combinedUP)
+                                    .add("password", combinedUP)
                                     .add("activity", "reset")
                                     .build();
 
                             Request request3 = new Request.Builder()
-                                    .url("https://raspi-nfcapi.socketxp.com/reset")
+                                    .url("https://raspi-nfcapi23.socketxp.com/reset")
                                     .post(formbody3)
                                     .build();
 

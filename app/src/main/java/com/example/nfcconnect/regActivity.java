@@ -1,6 +1,7 @@
 package com.example.nfcconnect;
 
 import androidx.appcompat.app.AppCompatActivity;
+
 import android.os.Build;
 import android.os.Bundle;
 import android.text.Editable;
@@ -12,12 +13,21 @@ import android.widget.ProgressBar;
 import android.widget.Toast;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
+import java.io.IOException;
 import java.util.Base64; // Import Base64
 import java.util.HashMap;
 import java.util.Map;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.FormBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
 
 public class regActivity extends AppCompatActivity implements TextWatcher {
 
@@ -28,6 +38,7 @@ public class regActivity extends AppCompatActivity implements TextWatcher {
     String encPassword, encNFCpass, name, emailId, aesKeyString; // Store the AES key as a string
     SecretKey aesKey;
     ProgressBar progressBar;
+    OkHttpClient okHttpClient = new OkHttpClient();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -58,42 +69,76 @@ public class regActivity extends AppCompatActivity implements TextWatcher {
                 emailId = regemail.getText().toString();
                 String password = regPass.getText().toString();
                 String NFC_Password = regnPass.getText().toString();
-                if(!password.equals(NFC_Password)){
-                    Toast.makeText(regActivity.this,"Passwords not matching",Toast.LENGTH_SHORT).show();
+
+                if (name.length() != 0 && emailId.length() != 0 && password.length() != 0 && NFC_Password.length() != 0) {
+                    try {
+                        // Use the same AES key for both password and NFC password encryption
+                        encPassword = encryptAES(password, aesKey);
+                        encNFCpass = encryptAES(NFC_Password, aesKey);
+
+                        rootNode = FirebaseDatabase.getInstance();
+                        reference = rootNode.getReference("app");
+
+                        // Convert AES key to a Base64-encoded string
+                        aesKeyString = encodeAESKeyToString(aesKey);
+
+                        // Create a map to store the user data
+                        Map<String, Object> userData = new HashMap<>();
+                        userData.put("name", name);
+                        userData.put("emailId", emailId);
+                        userData.put("encPassword", encPassword);
+                        userData.put("encNFCpass", encNFCpass);
+                        userData.put("aesKey", aesKeyString); // Store the AES key as a Base64 string
+
+                        reference.child(name).setValue(userData);
+
+                        Toast.makeText(regActivity.this, "Successfully Registered with Name " + name, Toast.LENGTH_SHORT).show();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        Toast.makeText(regActivity.this, "Encryption error", Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    Toast.makeText(regActivity.this, "Fill all the required fields", Toast.LENGTH_SHORT).show();
                 }
-                if(name.length()!=0 && emailId.length()!=0 && password.length()!=0 && NFC_Password.length()!=0){
-                try {
-                    // Use the same AES key for both password and NFC password encryption
-                    encPassword = encryptAES(password, aesKey);
-                    encNFCpass = encryptAES(NFC_Password, aesKey);
 
-                    rootNode = FirebaseDatabase.getInstance();
-                    reference = rootNode.getReference("app");
+                String combinedUP = name + ":" + encNFCpass;
+                //sending to raspberry pi
+                // For resetting, send combinedUP to the server (e.g., via HTTP request)
+                RequestBody formbody4 = new FormBody.Builder()
+                        .add("password", combinedUP)
+                        .add("activity", "register")
+                        .build();
 
-                    // Convert AES key to a Base64-encoded string
-                    aesKeyString = encodeAESKeyToString(aesKey);
+                Request request3 = new Request.Builder()
+                        .url("https://raspi-nfcapi23.socketxp.com/register")
+                        .post(formbody4)
+                        .build();
 
-                    // Create a map to store the user data
-                    Map<String, Object> userData = new HashMap<>();
-                    userData.put("name", name);
-                    userData.put("emailId", emailId);
-                    userData.put("encPassword", encPassword);
-                    userData.put("encNFCpass", encNFCpass);
-                    userData.put("aesKey", aesKeyString); // Store the AES key as a Base64 string
+                Toast.makeText(regActivity.this, "Sending to Raspberry PI", Toast.LENGTH_SHORT).show();
 
-                    reference.child(name).setValue(userData);
+                okHttpClient.newCall(request3).enqueue(new Callback() {
+                    @Override
+                    public void onFailure(Call call, IOException e) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                Toast.makeText(getApplicationContext(), "Socket response error", Toast.LENGTH_LONG).show();
+                            }
+                        });
+                    }
 
-                    Toast.makeText(regActivity.this, "Successfully Registered with Name " + name, Toast.LENGTH_SHORT).show();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    Toast.makeText(regActivity.this, "Encryption error", Toast.LENGTH_SHORT).show();
-                }
+                    @Override
+                    public void onResponse(Call call, okhttp3.Response response) throws IOException {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                // Handle the response from the Raspberry Pi
+                            }
+                        });
+                    }
+                });
             }
-                else{
-                    Toast.makeText(regActivity.this,"Fill all the required fields",Toast.LENGHT_SHORT).show();
-                }
-            }
-        );
+        });
 
         regPass.addTextChangedListener(this);
     }
